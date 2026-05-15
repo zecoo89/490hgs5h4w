@@ -5,6 +5,93 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>競馬レース出走馬一覧</title>
   <style>
+/* =========================
+   Mobile
+========================= */
+
+    @media (max-width: 480px) {
+
+      body {
+        padding: 8px;
+      }
+
+      .container {
+        max-width: 100%;
+      }
+
+      .card {
+        padding: 10px;
+        margin-bottom: 10px;
+      }
+
+      h1 {
+        font-size: 18px;
+      }
+
+      .controls {
+        gap: 6px;
+      }
+
+      select,
+      input,
+      button {
+        font-size: 12px;
+        padding: 4px 8px;
+      }
+
+      input[type="range"] {
+        width: 120px;
+      }
+
+      .race-buttons {
+        width: 100%;
+        gap: 4px;
+      }
+
+      .race-button {
+        width: 54px;
+        font-size: 12px;
+      }
+
+      .meta {
+        gap: 4px;
+      }
+
+      .badge {
+        font-size: 11px;
+        padding: 4px 6px;
+      }
+
+      /* 横スクロール */
+      .table-wrapper {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      table {
+        min-width: 760px;
+      }
+
+      th,
+      td {
+        font-size: 12px;
+        padding: 4px 6px;
+        height: 26px;
+      }
+
+      td.horse-name {
+        min-width: 140px;
+      }
+
+      .link-button {
+        width: 48px;
+        font-size: 11px;
+        padding: 4px;
+      }
+
+    }
+
+
     body {
       font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP", sans-serif;
       margin: 0;
@@ -159,22 +246,24 @@
       </div>
     </div>
 
-    <table>
-      <thead>
-        <tr>
-          <th>枠</th>
-          <th>馬番</th>
-          <th>馬名</th>
-          <th>騎手</th>
-          <th>人気</th>
-          <th>オッズ</th>
-          <th>スコア</th>
-          <th>評価</th>
-          <th>馬詳細</th>
-        </tr>
-      </thead>
-      <tbody id="horseTable"></tbody>
-    </table>
+    <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>枠</th>
+              <th>馬番</th>
+              <th>馬名</th>
+              <th>騎手</th>
+              <th>人気</th>
+              <th>オッズ</th>
+              <th>スコア</th>
+              <th>評価</th>
+              <th>馬詳細</th>
+            </tr>
+          </thead>
+          <tbody id="horseTable"></tbody>
+        </table>
+    </div>
 
   </div>
 
