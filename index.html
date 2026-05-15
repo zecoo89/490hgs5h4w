@@ -59,7 +59,7 @@
       background: #0b1220;
       color: #e2e8f0;
       border: 1px solid #334155;
-      padding: 6px 10px;
+      padding: 6px 18px 6px 10px;
       border-radius: 8px;
     }
 
@@ -69,7 +69,7 @@
 
     table {
       width: 100%;
-      table-layout: fixed;
+      table-layout: auto;
       border-collapse: collapse;
       background: #111827;
       border-radius: 12px;
@@ -85,8 +85,13 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      text-align: center;
+    }
+
+    td.horse-name {
+      overflow: visible;
+      text-overflow: unset;
       padding: 10px 12px;
-      text-align: left;
       font-size: 14px;
       border-bottom: 1px solid #1f2937;
     }
@@ -142,7 +147,7 @@
       <div class="control-row">
         <select id="dateSelect"></select>
         <select id="courseSelect"></select>
-        <select id="raceNoSelect"></select>
+        <div id="raceList" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
       </div>
 
       <div class="control-row">
@@ -161,7 +166,6 @@
           <th>馬番</th>
           <th>馬名</th>
           <th>騎手</th>
-          <th>斤量</th>
           <th>人気</th>
           <th>オッズ</th>
           <th>スコア</th>
@@ -176,9 +180,18 @@
 
   <script>
     let threshold = 0.60;
+    let selectedRaceNo = null;
     let sortEnabled = true;
 
     let races = [];
+
+    function formatDate(dateStr) {
+      const y = dateStr.slice(0, 4);
+      const m = dateStr.slice(4, 6);
+      const d = dateStr.slice(6, 8);
+
+      return `${y}年${m}月${d}日`;
+    }
 
     function jrdbToNetkeiba(raceKey) {
       const place = raceKey.slice(0, 2);
@@ -205,7 +218,7 @@
     function getSelectedRace() {
       const date = document.getElementById("dateSelect").value;
       const course = document.getElementById("courseSelect").value;
-      const raceNo = document.getElementById("raceNoSelect").value;
+      const raceNo = selectedRaceNo;
 
       return races.find(r => r.date === date && r.course === course && r.raceNo === raceNo);
     }
@@ -239,9 +252,8 @@
         tr.innerHTML = `
           <td>${h.frame}</td>
           <td>${h.num}</td>
-          <td>${h.name}</td>
+          <td class="horse-name">${h.name}</td>
           <td>${h.jockey}</td>
-          <td>${h.weight}</td>
           <td>${h.pop}</td>
           <td>${h.odds}</td>
           <td class="${isHigh ? 'score-high' : 'score-low'}">${h.score.toFixed(2)}</td>
@@ -305,24 +317,46 @@
     function updateRaceNoOptions() {
       const date = document.getElementById("dateSelect").value;
       const course = document.getElementById("courseSelect").value;
-      const raceNoSelect = document.getElementById("raceNoSelect");
-      const current = raceNoSelect.value;
 
-      const raceNos = [...new Set(
-        races
-          .filter(r => r.date === date && r.course === course)
-          .map(r => r.raceNo)
-      )];
+      const raceList = document.getElementById("raceList");
+      raceList.innerHTML = "";
 
-      raceNoSelect.innerHTML = "";
+      const targetRaces = races
+        .filter(r => r.date === date && r.course === course)
+        .sort((a, b) => parseInt(a.raceNo) - parseInt(b.raceNo));
 
-      raceNos.forEach(r => {
-        raceNoSelect.innerHTML += `<option value="${r}">${r}</option>`;
-      });
-
-      if (raceNos.includes(current)) {
-        raceNoSelect.value = current;
+      if (!selectedRaceNo && targetRaces.length > 0) {
+        selectedRaceNo = targetRaces[0].raceNo;
       }
+
+      targetRaces.forEach(race => {
+        const hasHighScore = race.horses.some(h => h.score >= threshold);
+
+        const button = document.createElement("button");
+
+        button.textContent = `${hasHighScore ? '★ ' : '　 '}${race.raceNo}`;
+
+        button.style.padding = "6px 10px";
+        button.style.width = "64px";
+        button.style.borderRadius = "8px";
+        button.style.border = race.raceNo === selectedRaceNo
+          ? "1px solid #fbbf24"
+          : "1px solid #334155";
+
+        button.style.background = race.raceNo === selectedRaceNo
+          ? "#1e293b"
+          : "#0b1220";
+
+        button.style.color = hasHighScore ? "#fbbf24" : "#e2e8f0";
+
+        button.addEventListener("click", () => {
+          selectedRaceNo = race.raceNo;
+          updateRaceNoOptions();
+          updateView();
+        });
+
+        raceList.appendChild(button);
+      });
     }
 
     function updateView() {
@@ -336,6 +370,7 @@
       threshold = parseFloat(e.target.value);
       document.getElementById("thresholdValue").textContent = threshold.toFixed(2);
       document.getElementById("thresholdInput").value = threshold.toFixed(2);
+      updateRaceNoOptions();
       updateView();
     });
 
@@ -351,6 +386,7 @@
       document.getElementById("thresholdSlider").value = value;
       document.getElementById("thresholdValue").textContent = value.toFixed(2);
 
+      updateRaceNoOptions();
       updateView();
     });
 
@@ -364,15 +400,17 @@
     });
 
     document.getElementById("dateSelect").addEventListener("change", () => {
+      selectedRaceNo = null;
       updateCourseOptions();
       updateRaceNoOptions();
       updateView();
     });
     document.getElementById("courseSelect").addEventListener("change", () => {
+      selectedRaceNo = null;
       updateRaceNoOptions();
       updateView();
     });
-    document.getElementById("raceNoSelect").addEventListener("change", updateView);
+    
 
     async function loadData() {
       const response = await fetch("./data.json");
@@ -387,7 +425,7 @@
         if (!raceMap.has(raceKey)) {
           raceMap.set(raceKey, {
             raceKey,
-            date: String(row["開催日"]),
+            date: formatDate(String(row["開催日"])),
             course: row["競馬場名"],
             raceNo: `${row["Ｒ"]}R`,
             title: row["レース名９文字"],
@@ -404,8 +442,8 @@
           weight: "-",
           pop: row["基準単勝人気順位"],
           odds: row["基準単勝オッズ"],
-          score: row["pred"],
-          bloodId: row["血統登録番号"]
+          score: row["pred_normalized"],
+          bloodId: `20${row["血統登録番号"]}`
         });
       });
 
@@ -418,7 +456,7 @@
       updateCourseOptions();
       document.getElementById("courseSelect").value = races[0].course;
       updateRaceNoOptions();
-      document.getElementById("raceNoSelect").value = races[0].raceNo;
+      selectedRaceNo = races[0].raceNo;
 
       updateView();
     }
