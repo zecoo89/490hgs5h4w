@@ -136,10 +136,10 @@
     }
 
     .control-row {
+      margin-bottom: 16px;
       display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-      margin-bottom: 10px;
+      align-items: center;
+      gap: 10px;
     }
 
     select, input[type="range"] {
@@ -239,9 +239,9 @@
 
       <div class="control-row">
         <label>スコア閾値:</label>
-        <span id="thresholdValue">0.60</span>
-        <input type="range" id="thresholdSlider" min="0" max="1" step="0.01" value="0.60" />
-        <input type="number" id="thresholdInput" min="0" max="1" step="0.01" value="0.60" style="width: 90px;" />
+        <span id="thresholdValue">0.180</span>
+        <input type="range" id="thresholdSlider" min="0" max="1" step="0.005" value="0.180" />
+        <input type="number" id="thresholdInput" min="0" max="1" step="0.005" value="0.180" style="width: 90px;" />
         <button id="sortButton">スコア降順: ON</button>
       </div>
     </div>
@@ -256,8 +256,9 @@
               <th>騎手</th>
               <th>人気</th>
               <th>オッズ</th>
-              <th>スコア</th>
-              <th>評価</th>
+              <th>pred</th>
+              <th>predForEV</th>
+              <th>ev</th>
               <th>馬詳細</th>
             </tr>
           </thead>
@@ -268,7 +269,9 @@
   </div>
 
   <script>
-    let threshold = 0.60;
+    let thresholdPred = 0.180;
+    let thresholdPredForEv = 0.9;
+    let thresholdEv = 0.180;
     let selectedRaceNo = null;
     let sortEnabled = true;
 
@@ -329,13 +332,15 @@
       let horses = [...race.horses];
 
       if (sortEnabled) {
-        horses.sort((a, b) => b.score - a.score);
+        horses.sort((a, b) => b.predScore - a.predScore);
       } else {
         horses.sort((a, b) => a.num - b.num);
       }
 
       horses.forEach(h => {
-        const isHigh = h.score >= threshold;
+        const isHighPred = h.predScore >= thresholdPred;
+        const isHighPredForEv = h.predForEvScore >= thresholdPredForEv;
+        const isHighEv = h.evScore >= thresholdEv;
         const tr = document.createElement("tr");
 
         tr.innerHTML = `
@@ -345,8 +350,13 @@
           <td>${h.jockey}</td>
           <td>${h.pop}</td>
           <td>${h.odds}</td>
-          <td class="${isHigh ? 'score-high' : 'score-low'}">${h.score.toFixed(2)}</td>
-          <td class="mark">${isHigh ? '○' : ''}</td>
+          <td class="${isHighPred ? 'score-high' : 'score-low'}">${h.predScore.toFixed(3)}</td>
+          <td class="${isHighPredForEv ? 'score-high' : 'score-low'}">
+            ${h.predForEvScore.toFixed(3)}
+          </td>
+          <td class="${(h.evScore ?? 0) >= 0.70 ? 'score-high' : 'score-low'}">
+            ${(h.evScore ?? 0).toFixed(3)}
+          </td>
           <td>
             <a href="${createHorseUrl(h.bloodId)}" target="_blank">
               <button>詳細</button>
@@ -419,14 +429,19 @@
       }
 
       targetRaces.forEach(race => {
-        const hasHighScore = race.horses.some(h => h.score >= threshold);
+        const hasHighPredScore = race.horses.some(h => h.predScore >= thresholdPred);
+        const hasHighEvScore = race.horses.some(h => h.evScore >= 0.80);
 
         const button = document.createElement("button");
-
-        button.textContent = `${hasHighScore ? '★ ' : '　 '}${race.raceNo}`;
+    
+        text = `${hasHighPredScore ? '🎯 ' : '　 '}`;
+        text += `${hasHighEvScore ? '🚀 ' : '　 '}`;
+        text += `${race.raceNo}`;
+        button.textContent = text;
 
         button.style.padding = "6px 10px";
-        button.style.width = "64px";
+        button.style.width = "88px";
+        button.style.height = "36px";
         button.style.borderRadius = "8px";
         button.style.border = race.raceNo === selectedRaceNo
           ? "1px solid #fbbf24"
@@ -436,7 +451,7 @@
           ? "#1e293b"
           : "#0b1220";
 
-        button.style.color = hasHighScore ? "#fbbf24" : "#e2e8f0";
+        button.style.color = hasHighPredScore ? "#fbbf24" : "#e2e8f0";
 
         button.addEventListener("click", () => {
           selectedRaceNo = race.raceNo;
@@ -456,9 +471,9 @@
     }
 
     document.getElementById("thresholdSlider").addEventListener("input", e => {
-      threshold = parseFloat(e.target.value);
-      document.getElementById("thresholdValue").textContent = threshold.toFixed(2);
-      document.getElementById("thresholdInput").value = threshold.toFixed(2);
+      thresholdPred = parseFloat(e.target.value);
+      document.getElementById("thresholdValue").textContent = thresholdPred.toFixed(3);
+      document.getElementById("thresholdInput").value = thresholdPred.toFixed(3);
       updateRaceNoOptions();
       updateView();
     });
@@ -470,7 +485,7 @@
 
       value = Math.max(0, Math.min(1, value));
 
-      threshold = value;
+      thresholdPred = value;
 
       document.getElementById("thresholdSlider").value = value;
       document.getElementById("thresholdValue").textContent = value.toFixed(2);
@@ -502,14 +517,34 @@
     
 
     async function loadData() {
-      const response = await fetch("./data.json");
-      const rawData = await response.json();
+      const [predRes, evRes] = await Promise.all([
+        fetch("./data_for_pred.json"),
+        fetch("./data_for_ev.json")
+      ]);
+
+      const predData = await predRes.json();
+      const evData = await evRes.json();
+
+      // EVを raceKey + 馬番 で辞書化
+      const evMap = new Map();
+      evData.forEach(row => {
+        const key = `${row["レースキー"]}_${row["馬番"]}`;
+        evMap.set(key, {
+          ev: row["ev"],
+          pred: row["pred_normalized"] // 入っているなら保持（不要なら削除可）
+        });
+      });
+
 
       // レース単位にグループ化
       const raceMap = new Map();
 
-      rawData.forEach(row => {
+      predData.forEach(row => {
         const raceKey = row["レースキー"];
+        const horseNo = row["馬番"];
+        const evKey = `${raceKey}_${horseNo}`;
+
+        const evRow = evMap.get(evKey);
 
         if (!raceMap.has(raceKey)) {
           raceMap.set(raceKey, {
@@ -531,7 +566,9 @@
           weight: "-",
           pop: row["基準単勝人気順位"],
           odds: row["基準単勝オッズ"],
-          score: row["pred_normalized"],
+          predScore: row["pred_normalized"],
+          predForEvScore: evRow?.pred ?? 0,
+          evScore: evRow?.ev ?? 0,
           bloodId: `20${row["血統登録番号"]}`
         });
       });
