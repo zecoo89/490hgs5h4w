@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>競馬レース出走馬一覧</title>
+  <style>
+/* =========================
+   Mobile
+========================= */
+    @media (max-width: 480px) {
+      body {
+        padding: 8px;
+      }
+      .container {
+        max-width: 100%;
+      }
+      .card {
+        padding: 10px;
+        margin-bottom: 10px;
+      }
+      h1 {
+        font-size: 18px;
+      }
+      .controls {
+        gap: 6px;
+      }
+      select, input, button {
+        font-size: 12px;
+        padding: 4px 8px;
+      }
+      input[type="range"] {
+        width: 100px;
+      }
+      .meta {
+        gap: 4px;
+      }
+      .badge {
+        font-size: 11px;
+        padding: 4px 6px;
+      }
+      /* 横スクロール */
+      .table-wrapper {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      table {
+        min-width: 760px;
+      }
+      th, td {
+        font-size: 12px;
+        padding: 4px 6px;
+        height: 26px;
+      }
+      td.horse-name {
+        min-width: 140px;
+      }
+      .link-button {
+        width: 48px;
+        font-size: 11px;
+        padding: 4px;
+      }
+      .control-row label {
+        width: 120px !important;
+        justify-content: flex-start;
+      }
+    }
+
+    th {
+      padding: 10px 8px;
+    }
+
+/* =========================
+   Base & Desktop
+========================= */
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP", sans-serif;
+      margin: 0;
+      background: #0f172a;
+      color: #e2e8f0;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    .race-header {
+      background: #111827;
+      padding: 16px 20px;
+      border-radius: 12px;
+      margin-bottom: 12px;
+      border: 1px solid #1f2937;
+    }
+    .race-title {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .race-meta {
+      font-size: 14px;
+      color: #94a3b8;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .controls {
+      margin-bottom: 12px;
+      background: #111827;
+      padding: 12px 16px;
+      border-radius: 12px;
+      border: 1px solid #1f2937;
+    }
+    .control-row {
+      //margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .control-row label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px; /* 絵文字と文字の間隔 */
+      width: 220px; /* カラム名が長くても収まるように少し広げました */
+      text-align: right;
+      // justify-content: flex-end; /* 右寄せ */
+      vertical-align: middle;
+      font-weight: bold;
+    }
+
+
+    .control-row span {
+      display: inline-block;
+      width: 40px;
+      text-align: left;
+      vertical-align: middle;
+    }
+    select, input[type="range"], input[type="number"] {
+      background: #0b1220;
+      color: #e2e8f0;
+      border: 1px solid #334155;
+      padding: 6px 10px;
+      border-radius: 8px;
+    }
+    input[type="range"] {
+      width: 200px;
+    }
+    button {
+      background: #1e293b;
+      color: #e2e8f0;
+      border: 1px solid #334155;
+      padding: 6px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #334155;
+    }
+
+    /* レース一覧UI */
+    .course-group {
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px dashed #334155;
+    }
+    .course-group:last-child {
+      border-bottom: none;
+      margin-bottom: 0;
+      padding-bottom: 0;
+    }
+    .course-label {
+      font-size: 15px;
+      font-weight: bold;
+      color: #94a3b8;
+      margin-bottom: 8px;
+    }
+    .race-buttons-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .race-button {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-width: 64px;
+      padding: 6px;
+      border-radius: 8px;
+      background: #0b1220;
+      border: 1px solid #334155;
+      color: #e2e8f0;
+      cursor: pointer;
+    }
+    .race-button.selected {
+      background: #1e293b;
+      border-color: #fbbf24;
+      color: #fbbf24;
+    }
+    .race-button-marks {
+      font-size: 11px;
+      margin-bottom: 4px;
+      letter-spacing: 2px;
+      min-height: 14px;
+    }
+    .race-button-no {
+      font-size: 14px;
+      font-weight: bold;
+    }
+
+    /* テーブル */
+    table {
+      width: 100%;
+      table-layout: auto;
+      border-collapse: collapse;
+      background: #111827;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    thead {
+      background: #1f2937;
+    }
+    th, td {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-align: center;
+    }
+    td.horse-name {
+      overflow: visible;
+      text-overflow: unset;
+      padding: 10px 12px;
+      font-size: 14px;
+      border-bottom: 1px solid #1f2937;
+    }
+    tr:hover {
+      background: #0b1220;
+    }
+    .score-high {
+      color: #22c55e;
+      font-weight: 700;
+    }
+    .score-low {
+      color: #94a3b8;
+    }
+    .badge {
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      background: #1f2937;
+      border: 1px solid #334155;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <div class="race-header">
+      <div class="race-title" id="raceTitle">-</div>
+      <div class="race-meta">
+        <span class="badge" id="raceDate"></span>
+        <span class="badge" id="raceTime"></span>
+        <span class="badge" id="raceCourse"></span>
+        <span class="badge" id="raceNo"></span>
+        <span class="badge" id="raceInfo"></span>
+      </div>
+      <div style="margin-top: 12px; display: flex; gap: 8px;">
+        <a id="netkeibaRaceLink" href="#" target="_blank">
+          <button>netkeiba レース結果</button>
+        </a>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="control-row">
+        <label style="width: auto;">🗓 開催日</label>
+        <select id="dateSelect" style="width: 150px; margin-right: 16px;"></select>
+      </div>
+      <div id="raceListContainer" style="margin-top: 10px; padding-left: 10px;"></div>
+    </div>
+
+    <div class="controls" id="scoreControls"></div>
+
+    <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr id="tableHeader">
+              </tr>
+          </thead>
+          <tbody id="horseTable"></tbody>
+        </table>
+    </div>
+
+  </div>
+
+  <script>
+    let races = [];
+    let scoreKeys = [];
+    let thresholds = {};
+    let sortState = { key: 'num', desc: false }; // 初期ソートは馬番
+    let selectedRaceKey = null; // raceNoではなく一意のraceKeyで管理
+    let seenKeys = new Set();
+    
+    // 動的に割り当てる絵文字リスト
+    const emojis = ["🎯", "🚀", "🌟", "🔥", "💎", "🔮", "🍀"];
+
+    function formatDate(dateStr) {
+      if (!dateStr) return "";
+      const s = String(dateStr);
+      return `${s.slice(0, 4)}年${s.slice(4, 6)}月${s.slice(6, 8)}日`;
+    }
+
+    function jrdbToNetkeiba(raceKey) {
+      const place = raceKey.slice(0, 2);
+      const year = raceKey.slice(2, 4);
+      const kaisai = raceKey.slice(4, 5);
+      const day = raceKey.slice(5, 6);
+      const raceNum = raceKey.slice(6, 8);
+      const dayNum = parseInt(day, 16).toString().padStart(2, "0");
+      const kaisaiNum = parseInt(kaisai, 10).toString().padStart(2, "0");
+      return `20${year}${place}${kaisaiNum}${dayNum}${raceNum}`;
+    }
+
+    function createNetkeibaUrl(raceKey) {
+      const raceId = jrdbToNetkeiba(raceKey);
+      return `https://race.netkeiba.com/race/result.html?race_id=${raceId}&amp;rf=race_submenu`;
+    }
+
+    function createHorseUrl(bloodId) {
+      return `https://db.netkeiba.com/horse/${bloodId}`;
+    }
+
+    function getSelectedRace() {
+      return races.find(r => r.raceKey === selectedRaceKey);
+    }
+
+    function renderRaceInfo(race) {
+      document.getElementById("raceTitle").textContent = `${race.date} ${race.course} ${race.raceNo} ${race.title}`;
+      document.getElementById("raceDate").textContent = `開催日: ${race.date}`;
+      const timeStr = String(race.time).padStart(4, '0');
+      const time = timeStr.slice(0, -2) + ":" + timeStr.slice(-2);
+      document.getElementById("raceTime").textContent = `発走時間: ${time}`;
+      document.getElementById("raceCourse").textContent = `競馬場: ${race.course}`;
+      document.getElementById("raceNo").textContent = `レース: ${race.raceNo}`;
+      document.getElementById("raceInfo").textContent = race.condition;
+      document.getElementById("netkeibaRaceLink").href = createNetkeibaUrl(race.raceKey);
+    }
+
+    // テーブルのヘッダーを動的構築
+    function updateTableHeader() {
+      const tr = document.getElementById("tableHeader");
+      tr.innerHTML = `
+        <th>枠</th>
+        <th>馬番</th>
+        <th>馬名</th>
+        <th>騎手</th>
+        <th>人気</th>
+        <th>オッズ</th>
+      `;
+
+      scoreKeys.forEach((key, index) => {
+        const emoji = emojis[index % emojis.length];
+        const th = document.createElement("th");
+        th.textContent = `${emoji} ${key}`; // ヘッダーのカラム名先頭に絵文字を追加
+        tr.appendChild(th);
+      });
+      tr.innerHTML += `<th>馬詳細</th>`;
+    }
+
+    // スライダーとソートボタンを動的構築
+    function updateScoreControls() {
+      const container = document.getElementById("scoreControls");
+      container.innerHTML = "";
+
+      scoreKeys.forEach((key, index) => {
+        const emoji = emojis[index % emojis.length];
+        
+        const row = document.createElement("div");
+        row.className = "control-row";
+
+        // labelの中身を構造化して縦中央に揃える
+        const label = document.createElement("label");
+        label.innerHTML = `<span>${emoji}</span><span>${key}</span>`;
+
+        const valSpan = document.createElement("span");
+        valSpan.textContent = thresholds[key].toFixed(2);
+
+        const slider = document.createElement("input");
+        slider.type = "range";
+        slider.min = "0";
+        slider.max = "1";
+        slider.step = "0.005";
+        slider.value = thresholds[key];
+
+        const numInput = document.createElement("input");
+        numInput.type = "number";
+        numInput.min = "0";
+        numInput.max = "1";
+        numInput.step = "0.005";
+        numInput.value = thresholds[key];
+        numInput.style.width = "70px";
+
+        const sortBtn = document.createElement("button");
+        const isCurrentSort = (sortState.key === key);
+        sortBtn.textContent = `ソート: ${isCurrentSort ? (sortState.desc ? "降順ON" : "昇順ON") : "OFF"}`;
+        sortBtn.style.marginLeft = "16px";
+        if (isCurrentSort) {
+          sortBtn.style.border = "1px solid #fbbf24";
+          sortBtn.style.color = "#fbbf24";
+        }
+
+        const updateThreshold = (val) => {
+          let v = parseFloat(val);
+          if (isNaN(v)) return;
+          v = Math.max(0, Math.min(1, v));
+          thresholds[key] = v;
+          valSpan.textContent = v.toFixed(3);
+          slider.value = v;
+          numInput.value = v;
+          updateRaceList();
+          updateView();
+        };
+
+        slider.addEventListener("input", e => updateThreshold(e.target.value));
+        numInput.addEventListener("input", e => updateThreshold(e.target.value));
+
+        sortBtn.addEventListener("click", () => {
+          if (sortState.key === key) {
+            // 降順 -> 昇順 -> 馬番(リセット) のローテーション
+            if (sortState.desc) {
+              sortState.desc = false;
+            } else {
+              sortState = { key: 'num', desc: false };
+            }
+          } else {
+            sortState = { key: key, desc: true };
+          }
+          updateScoreControls(); // ボタンの見た目を再描画
+          updateView();
+        });
+
+        row.appendChild(label);
+        row.appendChild(valSpan);
+        row.appendChild(slider);
+        row.appendChild(numInput);
+        row.appendChild(sortBtn);
+
+        container.appendChild(row);
+      });
+    }
+
+    function renderTable(race) {
+      const tbody = document.getElementById("horseTable");
+      tbody.innerHTML = "";
+
+      let horses = [...race.horses];
+
+      // ソート処理
+      if (sortState.key === 'num') {
+        horses.sort((a, b) => a.num - b.num);
+      } else {
+        horses.sort((a, b) => {
+          const valA = a.scores[sortState.key] || 0;
+          const valB = b.scores[sortState.key] || 0;
+          return sortState.desc ? valB - valA : valA - valB;
+        });
+      }
+
+      horses.forEach(h => {
+        const tr = document.createElement("tr");
+
+        let html = `
+          <td>${h.frame}</td>
+          <td>${h.num}</td>
+          <td class="horse-name">${h.name}</td>
+          <td>${h.jockey}</td>
+          <td>${h.pop}</td>
+          <td>${h.odds}</td>
+        `;
+
+        // 動的スコア列
+        scoreKeys.forEach(key => {
+          const val = h.scores[key] || 0;
+          const isHigh = val >= thresholds[key];
+          html += `<td class="${isHigh ? 'score-high' : 'score-low'}">${val.toFixed(3)}</td>`;
+        });
+
+        html += `
+          <td>
+            <a href="${createHorseUrl(h.bloodId)}" target="_blank">
+              <button>詳細</button>
+            </a>
+          </td>
+        `;
+        
+        tr.innerHTML = html;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function updateDateOptions() {
+      const dateSelect = document.getElementById("dateSelect");
+      const current = dateSelect.value;
+      const dates = [...new Set(races.map(r => r.date))];
+
+      dateSelect.innerHTML = "";
+      dates.forEach(d => {
+        dateSelect.innerHTML += `<option value="${d}">${d}</option>`;
+      });
+
+      if (dates.includes(current)) {
+        dateSelect.value = current;
+      }
+    }
+
+    // 日付に応じた全競馬場のレース一覧を生成
+    function updateRaceList() {
+      const date = document.getElementById("dateSelect").value;
+      const container = document.getElementById("raceListContainer");
+      container.innerHTML = "";
+
+      const targetRaces = races.filter(r => r.date === date);
+      const courses = [...new Set(targetRaces.map(r => r.course))];
+
+      courses.forEach(course => {
+        const courseRaces = targetRaces
+          .filter(r => r.course === course)
+          .sort((a, b) => parseInt(a.raceNo) - parseInt(b.raceNo));
+
+        if (courseRaces.length === 0) return;
+
+        const groupDiv = document.createElement("div");
+        groupDiv.className = "course-group";
+
+        const labelDiv = document.createElement("div");
+        labelDiv.className = "course-label";
+        labelDiv.textContent = `📍 ${course}`;
+        groupDiv.appendChild(labelDiv);
+
+        const buttonsDiv = document.createElement("div");
+        buttonsDiv.className = "race-buttons-container";
+
+        courseRaces.forEach(race => {
+          // スコアのしきい値超え判定（マーク生成）
+          let marksHTML = "";
+          scoreKeys.forEach((key, index) => {
+            const hasHigh = race.horses.some(h => (h.scores[key] || 0) >= thresholds[key]);
+            if (hasHigh) {
+              marksHTML += emojis[index % emojis.length];
+            } else {
+              marksHTML += `<span style="opacity:0;">${emojis[index % emojis.length]}</span>`; // 高さを合わせるため透明化
+            }
+          });
+
+          const button = document.createElement("div");
+          button.className = `race-button ${race.raceKey === selectedRaceKey ? 'selected' : ''}`;
+          
+          button.innerHTML = `
+            <div class="race-button-marks">${marksHTML}</div>
+            <div class="race-button-no">${race.raceNo}</div>
+          `;
+
+          button.addEventListener("click", () => {
+            selectedRaceKey = race.raceKey;
+            updateRaceList(); // 選択状態の再描画
+            updateView();
+          });
+
+          buttonsDiv.appendChild(button);
+        });
+
+        groupDiv.appendChild(buttonsDiv);
+        container.appendChild(groupDiv);
+      });
+    }
+
+    function updateView() {
+      const race = getSelectedRace();
+      if (!race) return;
+      renderRaceInfo(race);
+      renderTable(race);
+    }
+
+    document.getElementById("dateSelect").addEventListener("change", () => {
+      // 日付が変わったら、その日の最初のレースを選択
+      const date = document.getElementById("dateSelect").value;
+      const targetRaces = races.filter(r => r.date === date);
+      if (targetRaces.length > 0) {
+         selectedRaceKey = targetRaces[0].raceKey;
+      }
+      updateRaceList();
+      updateView();
+    });
+
+    async function notify(items) {
+      if (Notification.permission !== "granted") {
+        const perm = await Notification.requestPermission();
+        if (perm !== "granted") return;
+      }
+      for (const item of items) {
+        new Notification("新しいレースデータ", {
+          body: `${item.開催日} ${item.競馬場名} R${item.Ｒ}`,
+        });
+      }
+    }
+
+    function makeKey(d) {
+      return `${d.開催日}_${d.競馬場名}_${d.Ｒ}`;
+    }
+
+    async function loadData(isInit) {
+      // data.json 1つのみに統一
+      const res = await fetch("./data.json", {cache: "no-store"});
+      const rawData = await res.json();
+
+      // 初回ロード時: スコアカラムを抽出し、UIを生成
+      if (rawData.length > 0 && scoreKeys.length === 0) {
+        scoreKeys = Object.keys(rawData[0]).filter(k => k.includes('score'));
+        scoreKeys.forEach(k => {
+          thresholds[k] = 0.5; // スライダーの初期値
+        });
+        updateScoreControls();
+        updateTableHeader();
+      }
+
+      const newItems = [];
+      const raceMap = new Map();
+
+      rawData.forEach(row => {
+        const key = makeKey(row);
+        if (!seenKeys.has(key)) {
+          seenKeys.add(key);
+          newItems.push(row);
+        }
+
+        const raceKey = row["レースキー"];
+        if (!raceMap.has(raceKey)) {
+          raceMap.set(raceKey, {
+            raceKey,
+            date: formatDate(row["開催日"]),
+            time: row["発走時間"],
+            course: row["競馬場名"],
+            raceNo: `${row["Ｒ"]}R`,
+            title: row["レース名９文字"],
+            condition: `${row["芝ダ障害"]} ${row["距離"]}m / ${row["条件"]}`,
+            horses: []
+          });
+        }
+
+        // 動的スコアの抽出
+        const scores = {};
+        scoreKeys.forEach(k => {
+          scores[k] = row[k] ?? 0;
+        });
+
+        raceMap.get(raceKey).horses.push({
+          frame: row["枠番"],
+          num: row["馬番"],
+          name: row["馬名"],
+          jockey: row["騎手名"],
+          pop: row["基準単勝人気順位"],
+          odds: row["基準単勝オッズ"],
+          scores: scores,
+          bloodId: `20${row["血統登録番号"]}`
+        });
+      });
+
+      if (newItems.length > 0 && !isInit) {
+        console.log('new items loaded.');
+        notify(newItems);
+      }
+
+      races = [...raceMap.values()];
+
+      updateDateOptions();
+
+      if (isInit && races.length > 0) {
+        document.getElementById("dateSelect").value = races[0].date;
+        selectedRaceKey = races[0].raceKey;
+      }
+
+      updateRaceList();
+
+      if (isInit) {
+        updateView();
+      }
+    }
+
+    let timer;
+    function loop() {
+      loadData(false).catch(console.error).finally(() => {
+        timer = setTimeout(loop, 60_000);
+      });
+    }
+
+    let isInit = true;
+    loadData(isInit).then(() => {
+      isInit = false;
+      loop();
+    });
+
+  </script>
+</body>
+</html>
